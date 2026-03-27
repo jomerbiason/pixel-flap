@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Flap</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #70c5ce;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  background: #70c5ce;
+  border: 2px solid #000;
+}
+</style>
+</head>
+
+<body>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// STATES
+let state = "menu";
+
+let bird, pipes, frame, score;
+let highScore = localStorage.getItem("highScore") || 0;
+
+// RESET GAME
+function resetGame() {
+  bird = {
+    x: 50,
+    y: 150,
+    width: 20,
+    height: 20,
+    gravity: 0.5,
+    lift: -8,
+    velocity: 0
+  };
+
+  pipes = [];
+  frame = 0;
+  score = 0;
+}
+
+// DRAW
+function drawBird() {
+  ctx.fillStyle = 'yellow';
+  ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+}
+
+function drawPipes() {
+  ctx.fillStyle = 'green';
+  pipes.forEach(pipe => {
+    ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+    ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipe.width, pipe.bottom);
+  });
+}
+
+function drawScore() {
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.fillText('Score: ' + score, 10, 25);
+}
+
+// UPDATE
+function updateBird() {
+  bird.velocity += bird.gravity;
+  bird.velocity = Math.min(bird.velocity, 10);
+  bird.y += bird.velocity;
+
+  if (bird.y + bird.height >= canvas.height || bird.y <= 0) {
+    state = "gameover";
+  }
+}
+
+function updatePipes() {
+  if (frame % 90 === 0) {
+    let top = Math.random() * 200 + 50;
+    let gap = 120;
+    let bottom = canvas.height - top - gap;
+
+    pipes.push({
+      x: canvas.width,
+      width: 40,
+      top: top,
+      bottom: bottom,
+      passed: false
+    });
+  }
+
+  pipes.forEach(pipe => {
+    pipe.x -= 2;
+
+    // COLLISION
+    if (
+      bird.x < pipe.x + pipe.width &&
+      bird.x + bird.width > pipe.x &&
+      (bird.y < pipe.top || bird.y + bird.height > canvas.height - pipe.bottom)
+    ) {
+      state = "gameover";
+    }
+
+    // SCORE FIX
+    if (!pipe.passed && pipe.x + pipe.width < bird.x) {
+      score++;
+      pipe.passed = true;
+    }
+  });
+
+  pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+}
+
+// UI SCREENS
+function drawMenu() {
+  ctx.fillStyle = 'black';
+  ctx.font = '40px Arial';
+  ctx.fillText('PIXEL FLAP', 80, 200);
+
+  ctx.font = '20px Arial';
+  ctx.fillText('Click to Start', 130, 280);
+  ctx.fillText('Press C for Controls', 100, 320);
+
+  ctx.fillText('High Score: ' + highScore, 120, 380);
+}
+
+function drawControls() {
+  ctx.fillStyle = 'black';
+  ctx.font = '30px Arial';
+  ctx.fillText('CONTROLS', 110, 180);
+
+  ctx.font = '18px Arial';
+  ctx.fillText('Click / Press any key = Flap', 60, 250);
+  ctx.fillText('Avoid pipes', 130, 280);
+
+  ctx.fillText('Press B to go back', 90, 350);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'black';
+  ctx.font = '30px Arial';
+  ctx.fillText('Game Over', 110, 220);
+
+  ctx.font = '20px Arial';
+  ctx.fillText('Score: ' + score, 140, 270);
+  ctx.fillText('High Score: ' + highScore, 110, 310);
+
+  ctx.fillText('Click = Restart', 120, 360);
+  ctx.fillText('Press M = Menu', 115, 400);
+}
+
+// LOOP
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (state === "menu") {
+    drawMenu();
+  }
+
+  else if (state === "controls") {
+    drawControls();
+  }
+
+  else if (state === "playing") {
+    drawBird();
+    drawPipes();
+
+    updateBird();
+    updatePipes();
+
+    drawScore();
+    frame++;
+  }
+
+  else if (state === "gameover") {
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem("highScore", highScore);
+    }
+    drawGameOver();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// CONTROLS
+window.addEventListener('keydown', (e) => {
+  if (state === "menu") {
+    if (e.key.toLowerCase() === 'c') state = "controls";
+  }
+  else if (state === "controls") {
+    if (e.key.toLowerCase() === 'b') state = "menu";
+  }
+  else if (state === "playing") {
+    bird.velocity = bird.lift;
+  }
+  else if (state === "gameover") {
+    if (e.key.toLowerCase() === 'm') {
+      state = "menu";
+    }
+  }
+});
+
+window.addEventListener('click', () => {
+  if (state === "menu") {
+    resetGame();
+    state = "playing";
+  }
+  else if (state === "gameover") {
+    resetGame();
+    state = "playing";
+  }
+  else if (state === "playing") {
+    bird.velocity = bird.lift;
+  }
+});
+
+// START
+loop();
+</script>
+</body>
+</html>
