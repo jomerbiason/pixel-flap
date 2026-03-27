@@ -32,25 +32,20 @@ const ctx = canvas.getContext('2d');
 
 // STATES
 let state = "menu";
-
 let bird, pipes, frame, score;
 let highScore = localStorage.getItem("highScore") || 0;
+let menuAnimation = 0;
+
+// GAME SLOW-MOTION FLAG
+let waitingForFirstFlap = false;
 
 // RESET GAME
 function resetGame() {
-  bird = {
-    x: 50,
-    y: 150,
-    width: 20,
-    height: 20,
-    gravity: 0.5,
-    lift: -8,
-    velocity: 0
-  };
-
+  bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.5, lift: -8, velocity: 0 };
   pipes = [];
   frame = 0;
   score = 0;
+  waitingForFirstFlap = true; // start in slow motion
 }
 
 // DRAW
@@ -67,15 +62,21 @@ function drawPipes() {
   });
 }
 
+// DRAW SCORE
 function drawScore() {
-  ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
-  ctx.fillText('Score: ' + score, 10, 25);
+  ctx.fillStyle = 'white';
+  ctx.fillText('High Score: ' + highScore, 10, 25);
+  ctx.fillText('Score: ' + score, 10, 50);
 }
 
 // UPDATE
 function updateBird() {
-  bird.velocity += bird.gravity;
+  if (waitingForFirstFlap) {
+    bird.velocity += bird.gravity * 0.05; // super slow motion
+  } else {
+    bird.velocity += bird.gravity;
+  }
   bird.velocity = Math.min(bird.velocity, 10);
   bird.y += bird.velocity;
 
@@ -86,23 +87,18 @@ function updateBird() {
 
 function updatePipes() {
   if (frame % 90 === 0) {
-    let top = Math.random() * 200 + 50;
-    let gap = 120;
+    let minTop = 50;
+    let maxTop = canvas.height - 50 - 150; // 150 is the gap
+    let top = Math.random() * (maxTop - minTop) + minTop;
+    let gap = 150; // wider gap for easier passage
     let bottom = canvas.height - top - gap;
-
-    pipes.push({
-      x: canvas.width,
-      width: 40,
-      top: top,
-      bottom: bottom,
-      passed: false
-    });
+    pipes.push({ x: canvas.width, width: 40, top, bottom, passed: false });
   }
 
   pipes.forEach(pipe => {
-    pipe.x -= 2;
+    pipe.x -= waitingForFirstFlap ? 0.2 : 2; // super slow motion before first flap
 
-    // COLLISION
+    // Collision
     if (
       bird.x < pipe.x + pipe.width &&
       bird.x + bird.width > pipe.x &&
@@ -111,7 +107,7 @@ function updatePipes() {
       state = "gameover";
     }
 
-    // SCORE FIX
+    // Score
     if (!pipe.passed && pipe.x + pipe.width < bird.x) {
       score++;
       pipe.passed = true;
@@ -123,27 +119,43 @@ function updatePipes() {
 
 // UI SCREENS
 function drawMenu() {
-  ctx.fillStyle = 'black';
-  ctx.font = '40px Arial';
-  ctx.fillText('PIXEL FLAP', 80, 200);
+  menuAnimation += 0.03;
+  let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#70c5ce");
+  gradient.addColorStop(1, "#4ec0ca");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.font = '20px Arial';
-  ctx.fillText('Click to Start', 130, 280);
-  ctx.fillText('Press C for Controls', 100, 320);
+  let floatY = Math.sin(menuAnimation) * 10;
+  ctx.fillStyle = "yellow";
+  ctx.fillRect(180, 180 + floatY, 20, 20);
 
-  ctx.fillText('High Score: ' + highScore, 120, 380);
+  ctx.globalAlpha = Math.min(1, menuAnimation / 2);
+  ctx.fillStyle = "black";
+  ctx.font = "40px Arial";
+  ctx.fillText("PIXEL FLAP", 80, 120);
+  ctx.globalAlpha = 1;
+
+  let pulse = Math.sin(menuAnimation * 3) * 0.5 + 0.5;
+  ctx.globalAlpha = 0.5 + pulse * 0.5;
+  ctx.font = "22px Arial";
+  ctx.fillText("Press any key / tap to start", 50, 300);
+  ctx.globalAlpha = 1;
+
+  ctx.font = "18px Arial";
+  ctx.fillText("High Score: " + highScore, 10, 25);
 }
 
-function drawControls() {
-  ctx.fillStyle = 'black';
-  ctx.font = '30px Arial';
-  ctx.fillText('CONTROLS', 110, 180);
+function drawGameScreen() {
+  drawBird();
+  drawPipes();
+  drawScore();
 
-  ctx.font = '18px Arial';
-  ctx.fillText('Click / Press any key = Flap', 60, 250);
-  ctx.fillText('Avoid pipes', 130, 280);
-
-  ctx.fillText('Press B to go back', 90, 350);
+  if (waitingForFirstFlap) {
+    ctx.fillStyle = 'black';
+    ctx.font = '22px Arial';
+    ctx.fillText("Tap to flap", 140, 550);
+  }
 }
 
 function drawGameOver() {
@@ -152,37 +164,34 @@ function drawGameOver() {
   ctx.fillText('Game Over', 110, 220);
 
   ctx.font = '20px Arial';
-  ctx.fillText('Score: ' + score, 140, 270);
-  ctx.fillText('High Score: ' + highScore, 110, 310);
+  ctx.fillText('High Score: ' + highScore, 110, 270);
+  ctx.fillText('Score: ' + score, 140, 310);
 
-  ctx.fillText('Click = Restart', 120, 360);
-  ctx.fillText('Press M = Menu', 115, 400);
+  if (score >= highScore) {
+    if (Math.floor(frame / 10) % 2 === 0) {
+      ctx.fillStyle = 'red';
+      ctx.font = '22px Arial';
+      ctx.fillText('NEW HIGH SCORE!', 100, 180);
+    }
+  }
+
+  ctx.fillStyle = 'black';
+  ctx.font = '20px Arial';
+  ctx.fillText('Press any key / tap to Restart', 70, 360);
+  ctx.fillText('Press B to go to Menu', 90, 400);
 }
 
 // LOOP
 function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (state === "menu") {
-    drawMenu();
-  }
-
-  else if (state === "controls") {
-    drawControls();
-  }
-
+  if (state === "menu") drawMenu();
   else if (state === "playing") {
-    drawBird();
-    drawPipes();
-
+    drawGameScreen();
     updateBird();
     updatePipes();
-
-    drawScore();
     frame++;
-  }
-
-  else if (state === "gameover") {
+  } else if (state === "gameover") {
     if (score > highScore) {
       highScore = score;
       localStorage.setItem("highScore", highScore);
@@ -194,38 +203,29 @@ function loop() {
 }
 
 // CONTROLS
+function handleInput() {
+  if (state === "menu") {
+    resetGame();
+    state = "playing";
+  } else if (state === "playing") {
+    if (waitingForFirstFlap) waitingForFirstFlap = false;
+    bird.velocity = bird.lift;
+  } else if (state === "gameover") {
+    resetGame();
+    state = "playing";
+  }
+}
+
 window.addEventListener('keydown', (e) => {
-  if (state === "menu") {
-    if (e.key.toLowerCase() === 'c') state = "controls";
-  }
-  else if (state === "controls") {
-    if (e.key.toLowerCase() === 'b') state = "menu";
-  }
-  else if (state === "playing") {
-    bird.velocity = bird.lift;
-  }
-  else if (state === "gameover") {
-    if (e.key.toLowerCase() === 'm') {
-      state = "menu";
-    }
-  }
+  if (e.key.toLowerCase() === 'b') {
+    state = "menu";
+    menuAnimation = 0;
+  } else handleInput();
 });
 
-window.addEventListener('click', () => {
-  if (state === "menu") {
-    resetGame();
-    state = "playing";
-  }
-  else if (state === "gameover") {
-    resetGame();
-    state = "playing";
-  }
-  else if (state === "playing") {
-    bird.velocity = bird.lift;
-  }
-});
+window.addEventListener('click', handleInput);
+window.addEventListener('touchstart', handleInput);
 
-// START
 loop();
 </script>
 </body>
