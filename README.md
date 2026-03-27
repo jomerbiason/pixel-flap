@@ -7,7 +7,7 @@ Simple mechanics, smooth gameplay, and instantly playable in your browser.
 
 ## 🎮 Play the Game
 
-👉 https://jomerbiason.github.io/my-pixel-flap/
+👉 https://jomerbiason.github.io/pixel-flap/
 
 ---
 
@@ -45,7 +45,7 @@ Simple mechanics, smooth gameplay, and instantly playable in your browser.
 ## 🚀 Getting Started
 
 ```bash
-git clone https://github.com/jomerbiason/my-pixel-flap.git
+git clone https://github.com/jomerbiason/pixel-flap.git
 ```
 
 Open `index.html` in your browser.
